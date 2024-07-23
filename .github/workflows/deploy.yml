@@ -6,7 +6,7 @@ jobs:
   Deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -14,11 +14,18 @@ jobs:
     - name: Deploy in EC2
       env:
         PRIVATE_KEY: ${{ secrets.SSH_KEY }}
-        HOST_NAME: ${{ secrets.HOST_NAME }}
+        HOST_NAME: ${{ secrets.HOST_NAME }}  # Use IP address here
         USER_NAME: ${{ secrets.USER_NAME }}
 
       run: |
         echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+        echo "Testing network connectivity to ${HOST_NAME}"
+        ping -c 4 ${HOST_NAME}
+        if [ $? -ne 0 ]; then
+          echo "Network connectivity test failed"
+          exit 1
+        fi
+        echo "Network connectivity test passed"
         ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOST_NAME} "
         cd /home/ubuntu/django-app/ &&
         git pull &&
@@ -27,3 +34,4 @@ jobs:
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
         sudo systemctl restart django-app"
+      shell: /usr/bin/bash -e {0}
